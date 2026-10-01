@@ -1,0 +1,28 @@
+# Entorno virtual
+.venv/
+venv/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Salidas / reportes generados / raw datasets 
+# no se suben al repositorio por su tamaño 
+reports/*.html
+data/raw/*.csv
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Entorno
+.env
