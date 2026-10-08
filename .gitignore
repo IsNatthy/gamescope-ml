@@ -14,17 +14,27 @@ __pycache__/
 *.egg-info/
 .pytest_cache/
 .ipynb_checkpoints/
+build/
+dist/
 
-# Salidas / reportes generados / raw datasets 
-# no se suben al repositorio por su tamaño 
-reports/*.html
+# Datasets originales y procesados
 data/raw/*.csv
 data/processed/
-reports/cleaning/
+src/data/raw/*.csv
+src/data/processed/
 
-# OS
+# Reportes generados
+reports/
+src/reports/
+
+# Variables de entorno
+.env
+.env.*
+!.env.example
+
+# Sistema operativo
 .DS_Store
 Thumbs.db
 
-# Entorno
-.env
+# Logs
+*.log
