@@ -6,11 +6,11 @@ from collections import Counter
 from decimal import InvalidOperation
 from pathlib import Path
 
-from cleaning.config import CONFIG
-from cleaning.normalizer import file_hash, row_hash, snake_case
-from cleaning.row_cleaner import clean_row
-from cleaning.validator import validate_output
-from reporting.cleaning_report import build_report, write_reports
+from src.cleaning.config import CONFIG
+from src.cleaning.normalizer import file_hash, row_hash, snake_case
+from src.cleaning.row_cleaner import clean_row
+from src.cleaning.validator import validate_output
+from src.reporting.cleaning_report import build_report, write_reports
 
 
 class DatasetCleaner:

@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from reporting.report_generator import ReportGenerator
+from src.reporting.report_generator import ReportGenerator
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]

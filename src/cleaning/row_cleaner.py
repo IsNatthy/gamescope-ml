@@ -4,8 +4,8 @@ from collections import Counter
 from datetime import datetime, timezone
 from decimal import Decimal
 
-from cleaning.config import CONFIG
-from cleaning.normalizer import normalize_date, normalize_languages, normalize_number
+from src.cleaning.config import CONFIG
+from src.cleaning.normalizer import normalize_date, normalize_languages, normalize_number
 
 
 def clean_row(raw: dict, dataset: str, counts: Counter) -> tuple[dict, list]:

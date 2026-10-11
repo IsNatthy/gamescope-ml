@@ -3,8 +3,8 @@
 import argparse
 from pathlib import Path
 
-from cleaning.config import CONFIG
-from cleaning.dataset_cleaner import DatasetCleaner
+from src.cleaning.config import CONFIG
+from src.cleaning.dataset_cleaner import DatasetCleaner
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 

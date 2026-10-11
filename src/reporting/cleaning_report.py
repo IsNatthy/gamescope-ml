@@ -4,7 +4,7 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
-from cleaning.normalizer import file_hash
+from src.cleaning.normalizer import file_hash
 
 
 def build_report(dataset, source_path, output_path, issues_path, source_sha, rows,
@@ -13,7 +13,7 @@ def build_report(dataset, source_path, output_path, issues_path, source_sha, row
     config_file = source_path.name
     types = {column: "texto" for column in output_columns}
     # Importación local para evitar que el generador dependa de detalles del flujo.
-    from cleaning.config import CONFIG
+    from src.cleaning.config import CONFIG
     config = CONFIG[dataset]
     types.update({column: "entero" for column in config["integers"]})
     types["appid"] = "identificador; se recomienda leer como string"

@@ -6,8 +6,8 @@ from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
 
-from cleaning.config import CONFIG
-from cleaning.normalizer import normalize_number, row_hash
+from src.cleaning.config import CONFIG
+from src.cleaning.normalizer import normalize_number, row_hash
 
 
 def validate_output(path: Path, dataset: str, expected_rows: int, expected_columns: list) -> dict:

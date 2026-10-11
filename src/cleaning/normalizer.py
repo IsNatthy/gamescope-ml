@@ -8,7 +8,7 @@ from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
 
-from cleaning.config import KICHE, MONTHS
+from src.cleaning.config import KICHE, MONTHS
 
 
 def snake_case(name: str) -> str:

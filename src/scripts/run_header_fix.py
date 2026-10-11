@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from cleaning.header_fixer import HeaderFixer
+from src.cleaning.header_fixer import HeaderFixer
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
