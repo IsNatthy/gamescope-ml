@@ -28,6 +28,9 @@ gamescope-ml/
     │   ├── __init__.py
     │   ├── cleaning_report.py
     │   └── report_generator.py
+    ├── features/
+    │   ├── __init__.py
+    │   └── build_dataset.py
     ├── reports/
     │   ├── cleaning/
     │   └── profiling/
@@ -35,7 +38,8 @@ gamescope-ml/
     │   ├── __init__.py
     │   ├── run_cleaning.py
     │   ├── run_header_fix.py
-    │   └── run_profiling.py
+    │   ├── run_profiling.py
+    │   └── run_build_dataset.py
     └── steam_analyzer/
         ├── __init__.py
         ├── config.py
@@ -113,6 +117,10 @@ Agrupa las funcionalidades relacionadas con la generación de informes.
 - **`cleaning_report.py`**: genera los informes y registros derivados del proceso de limpieza, incluyendo las observaciones que deban revisarse.
 - **`report_generator.py`**: contiene la funcionalidad de generación de reportes de profiling para explorar las características de los datasets.
 
+### `src/features/`
+
+Construye el dataset de modelado con features pre-lanzamiento, variables multi-hot y el target balanceado.
+
 ### `src/scripts/`
 
 Contiene los puntos de entrada que permiten ejecutar las operaciones desde la terminal.
@@ -120,6 +128,7 @@ Contiene los puntos de entrada que permiten ejecutar las operaciones desde la te
 - **`run_header_fix.py`**: inicia la corrección del encabezado del dataset de juegos.
 - **`run_cleaning.py`**: ejecuta la limpieza de los datasets. Permite seleccionar los juegos, las reseñas o ambos.
 - **`run_profiling.py`**: ejecuta la generación de reportes de profiling configurados en el proyecto.
+- **`run_build_dataset.py`**: construye el dataset de modelado a partir del dataset de juegos limpio.
 
 Estos scripts delegan las operaciones a los módulos correspondientes; no deben duplicar la lógica de limpieza ni de generación de informes.
 
@@ -207,6 +216,20 @@ py -m src.scripts.run_profiling
 Este comando ejecuta el script de profiling y genera los reportes definidos en `run_profiling.py`. Los resultados se almacenan en `src/reports/profiling/`.
 
 Los reportes de profiling permiten explorar la distribución de los datos, los valores faltantes y otras características relevantes de los datasets.
+
+### 4. Construir el dataset de features
+
+```powershell
+py -m src.scripts.run_build_dataset
+```
+
+Genera `src/data/processed/model_dataset.csv` y `src/reports/features/model_dataset.json`.
+
+Para sobrescribir las salidas existentes:
+
+```powershell
+py -m src.scripts.run_build_dataset --overwrite
+```
 
 ## Criterios de limpieza
 
