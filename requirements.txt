@@ -2,3 +2,5 @@
 matplotlib
 numpy
 fg-data-profiling
+scikit-learn
+seaborn
