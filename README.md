@@ -27,19 +27,25 @@ gamescope-ml/
     ├── reporting/
     │   ├── __init__.py
     │   ├── cleaning_report.py
+    │   ├── eda_report.py
     │   └── report_generator.py
     ├── features/
     │   ├── __init__.py
-    │   └── build_dataset.py
+    │   ├── build_dataset.py
+    │   └── split_dataset.py
     ├── reports/
     │   ├── cleaning/
+    │   ├── eda/
+    │   ├── features/
     │   └── profiling/
     ├── scripts/
     │   ├── __init__.py
     │   ├── run_cleaning.py
+    │   ├── run_eda.py
     │   ├── run_header_fix.py
     │   ├── run_profiling.py
-    │   └── run_build_dataset.py
+    │   ├── run_build_dataset.py
+    │   └── run_split.py
     └── steam_analyzer/
         ├── __init__.py
         ├── config.py
@@ -115,11 +121,15 @@ Contiene los componentes encargados de limpiar y validar los datasets.
 Agrupa las funcionalidades relacionadas con la generación de informes.
 
 - **`cleaning_report.py`**: genera los informes y registros derivados del proceso de limpieza, incluyendo las observaciones que deban revisarse.
+- **`eda_report.py`**: genera gráficos y un resumen del análisis exploratorio utilizando únicamente el conjunto de entrenamiento.
 - **`report_generator.py`**: contiene la funcionalidad de generación de reportes de profiling para explorar las características de los datasets.
 
 ### `src/features/`
 
 Construye el dataset de modelado con features pre-lanzamiento, variables multi-hot y el target balanceado.
+
+- **`build_dataset.py`**: construye el dataset de modelado a partir del dataset de juegos limpio.
+- **`split_dataset.py`**: divide el dataset de modelado en conjuntos de entrenamiento y prueba de forma estratificada y reproducible.
 
 ### `src/scripts/`
 
@@ -129,6 +139,8 @@ Contiene los puntos de entrada que permiten ejecutar las operaciones desde la te
 - **`run_cleaning.py`**: ejecuta la limpieza de los datasets. Permite seleccionar los juegos, las reseñas o ambos.
 - **`run_profiling.py`**: ejecuta la generación de reportes de profiling configurados en el proyecto.
 - **`run_build_dataset.py`**: construye el dataset de modelado a partir del dataset de juegos limpio.
+- **`run_split.py`**: divide el dataset de modelado en `train.csv` y `test.csv`.
+- **`run_eda.py`**: genera el análisis exploratorio y sus figuras a partir de `train.csv`.
 
 Estos scripts delegan las operaciones a los módulos correspondientes; no deben duplicar la lógica de limpieza ni de generación de informes.
 
@@ -153,6 +165,8 @@ Almacena los archivos utilizados y generados durante el procesamiento.
 Almacena los informes generados durante la ejecución.
 
 - **`cleaning/`**: contiene los informes y las observaciones asociados a la limpieza, según la configuración del proceso.
+- **`eda/`**: contiene las figuras, el resumen y los análisis de correlación del EDA.
+- **`features/`**: contiene los reportes de construcción y división del dataset de modelado.
 - **`profiling/`**: contiene los reportes HTML de análisis exploratorio.
 
 ## Ejecución del proyecto
@@ -229,6 +243,34 @@ Para sobrescribir las salidas existentes:
 
 ```powershell
 py -m src.scripts.run_build_dataset --overwrite
+```
+
+### 5. Dividir el dataset en train y test
+
+```powershell
+py -m src.scripts.run_split
+```
+
+Divide `src/data/processed/model_dataset.csv` en `train.csv` y `test.csv` con una proporción 80/20, estratificada por `exito` y con semilla reproducible. También genera `src/reports/features/split.json` con las distribuciones, hashes y conteos de cada partición.
+
+Para sobrescribir las salidas existentes:
+
+```powershell
+py -m src.scripts.run_split --overwrite
+```
+
+### 6. Generar el análisis exploratorio
+
+Después de dividir el dataset, ejecuta:
+
+```powershell
+py -m src.scripts.run_eda
+```
+
+Genera las figuras y el resumen del análisis exploratorio sobre `src/data/processed/train.csv` en `src/reports/eda/`. Si existe `src/data/processed/steam_game_reviews_clean.csv`, incluye también el análisis de las reseñas. Para consultar o modificar las rutas de entrada y salida:
+
+```powershell
+py -m src.scripts.run_eda --help
 ```
 
 ## Criterios de limpieza
