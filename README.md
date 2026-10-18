@@ -4,6 +4,8 @@ Proyecto de preparación, limpieza, validación y análisis exploratorio de data
 
 Actualmente, el proyecto se centra en el procesamiento independiente de los datasets de juegos y reseñas, la validación de su calidad y la generación de informes que permitan revisar los resultados antes de avanzar hacia la ingeniería de características y el modelado predictivo.
 
+Las instrucciones detalladas para preparar los datos y entrenar los modelos se encuentran en [TRAINING_GUIDE.md](TRAINING_GUIDE.md).
+
 ## Estructura del proyecto
 
 ```text

@@ -76,7 +76,7 @@ python -m src.scripts.run_cleaning --dataset games
 
 Si `src/data/processed/games_fixed_clean.csv` ya existe, no repitas este
 comando: el proyecto evita sobrescribir resultados anteriores. Continúa con
-`run_prepare_regression`.
+`run_build_dataset`.
 
 El resultado esperado es:
 
@@ -84,17 +84,19 @@ El resultado esperado es:
 src/data/processed/games_fixed_clean.csv
 ```
 
-Después crea el dataset de regresión:
+Después construye el dataset oficial de regresión:
 
 ```powershell
-python -m src.scripts.run_prepare_regression
+python -m src.scripts.run_build_dataset
+python -m src.scripts.run_split
 ```
 
 Esto crea:
 
 ```text
-src/data/processed/games_train.csv
-src/data/processed/games_test.csv
+src/data/processed/model_dataset.csv
+src/data/processed/train.csv
+src/data/processed/test.csv
 ```
 
 El campo `estimated_owners`, que viene como un rango, se convierte a un
@@ -102,10 +104,11 @@ valor numérico aproximado usando el punto medio del rango. El modelo entrena
 con `log(1 + jugadores)` porque la cantidad de jugadores tiene valores muy
 desiguales.
 
-Si necesitas repetir la preparación:
+Si necesitas repetir la preparación completa:
 
 ```powershell
-python -m src.scripts.run_prepare_regression --overwrite
+python -m src.scripts.run_build_dataset --overwrite
+python -m src.scripts.run_split --overwrite
 ```
 
 ## 6. Entrenar Random Forest y XGBoost
@@ -267,7 +270,8 @@ scripts tienen límites de filas, batch y número de hilos.
 
 ```powershell
 python -m src.scripts.run_cleaning --dataset games
-python -m src.scripts.run_prepare_regression
+python -m src.scripts.run_build_dataset
+python -m src.scripts.run_split
 python -m src.scripts.run_train_success --threads 2 --trees 100
 python -m src.scripts.run_train_bert --max-rows 5000 --batch-size 2 --epochs 1
 python -m src.scripts.run_train_bertopic --max-rows 5000 --min-topic-size 40

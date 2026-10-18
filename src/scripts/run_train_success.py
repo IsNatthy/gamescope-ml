@@ -1,7 +1,7 @@
 """Entrena y compara Random Forest y XGBoost para predecir jugadores.
 
-El entrenamiento no se ejecuta al importar el módulo. Usa pocos hilos por
-defecto para evitar saturar la máquina.
+El target oficial es ``owners_midpoint`` y el ajuste se hace sobre
+``log1p(owners_midpoint)`` para reducir el efecto de valores extremos.
 """
 
 import argparse
@@ -13,6 +13,7 @@ import numpy as np
 import pandas as pd
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+
 try:
     from xgboost import XGBRegressor
 except ImportError as error:
@@ -27,41 +28,52 @@ MODELS = ROOT / "models"
 REPORTS = ROOT / "reports" / "models"
 
 
-def evaluate(name, model, x_train, y_train, x_test, y_test, output_dir):
+def evaluate(name, model, x_train, y_train, x_test, y_test):
     model.fit(x_train, y_train)
-    pred_log = model.predict(x_test)
-    pred = np.maximum(0, np.expm1(pred_log))
+    prediction_log = model.predict(x_test)
+    prediction = np.maximum(0, np.expm1(prediction_log))
     real = np.expm1(y_test)
     result = {
         "model": name,
-        "mae": float(mean_absolute_error(real, pred)),
-        "rmse": float(mean_squared_error(real, pred) ** 0.5),
-        "r2": float(r2_score(real, pred)),
+        "mae": float(mean_absolute_error(real, prediction)),
+        "rmse": float(mean_squared_error(real, prediction) ** 0.5),
+        "r2": float(r2_score(real, prediction)),
     }
-    output_dir.mkdir(parents=True, exist_ok=True)
-    joblib.dump(model, output_dir / f"{name}.joblib")
+    MODELS.mkdir(parents=True, exist_ok=True)
+    joblib.dump(model, MODELS / f"{name}.joblib")
     return result
 
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--train", type=Path, default=PROCESSED / "games_train.csv")
-    parser.add_argument("--test", type=Path, default=PROCESSED / "games_test.csv")
+    parser = argparse.ArgumentParser(
+        description="Compara regresores para owners_midpoint."
+    )
+    parser.add_argument("--train", type=Path, default=PROCESSED / "train.csv")
+    parser.add_argument("--test", type=Path, default=PROCESSED / "test.csv")
     parser.add_argument("--threads", type=int, default=2)
     parser.add_argument("--trees", type=int, default=200)
     args = parser.parse_args()
+    if args.threads < 1 or args.trees < 10:
+        raise ValueError("threads debe ser >= 1 y trees debe ser >= 10.")
 
     train = pd.read_csv(args.train)
     test = pd.read_csv(args.test)
-    target = "target_players_log"
-    if target not in train or target not in test:
-        raise ValueError("Falta target_players_log. Ejecuta primero el constructor de regresión.")
+    target = "owners_midpoint"
+    if target not in train.columns or target not in test.columns:
+        raise ValueError(
+            "Falta owners_midpoint. Ejecuta primero run_build_dataset y run_split."
+        )
+    if list(train.drop(columns=[target, "appid", "name"], errors="ignore").columns) != list(
+        test.drop(columns=[target, "appid", "name"], errors="ignore").columns
+    ):
+        raise ValueError("Train y test no tienen las mismas columnas de features.")
 
-    ignored = {"target_players", target, "appid", "name"}
-    features = [c for c in train.columns if c not in ignored]
+    ignored = {target, "appid", "name"}
+    features = [column for column in train.columns if column not in ignored]
     x_train = train[features].apply(pd.to_numeric, errors="coerce").fillna(0).astype("float32")
     x_test = test[features].apply(pd.to_numeric, errors="coerce").fillna(0).astype("float32")
-    y_train, y_test = train[target], test[target]
+    y_train = np.log1p(train[target].astype("float64"))
+    y_test = np.log1p(test[target].astype("float64"))
 
     models = {
         "random_forest_regressor": RandomForestRegressor(
@@ -74,7 +86,10 @@ def main():
             tree_method="hist", random_state=42,
         ),
     }
-    results = [evaluate(n, m, x_train, y_train, x_test, y_test, MODELS) for n, m in models.items()]
+    results = [
+        evaluate(name, model, x_train, y_train, x_test, y_test)
+        for name, model in models.items()
+    ]
     REPORTS.mkdir(parents=True, exist_ok=True)
     (REPORTS / "success_models.json").write_text(
         json.dumps(results, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
