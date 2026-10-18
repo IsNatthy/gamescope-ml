@@ -10,7 +10,7 @@ PROCESSED = PROJECT_ROOT / "data" / "processed"
 
 
 def main():
-    parser = argparse.ArgumentParser(description="EDA (semana 7) sobre el conjunto de train")
+    parser = argparse.ArgumentParser(description="EDA de regresión sobre el conjunto de train")
     parser.add_argument("--train-file", type=Path, default=PROCESSED / "train.csv")
     parser.add_argument("--reviews-file", type=Path,
                         default=PROCESSED / "steam_game_reviews_clean.csv")
