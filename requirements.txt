@@ -4,3 +4,5 @@ numpy
 fg-data-profiling
 scikit-learn
 seaborn
+xgboost
+joblib
