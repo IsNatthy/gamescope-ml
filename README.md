@@ -126,10 +126,10 @@ Agrupa las funcionalidades relacionadas con la generación de informes.
 
 ### `src/features/`
 
-Construye el dataset de modelado con features pre-lanzamiento, variables multi-hot y el target balanceado.
+Construye el dataset de modelado de regresión con features disponibles antes del lanzamiento, variables multi-hot de géneros, categorías y etiquetas (tags), y un target numérico: el punto medio del intervalo de propietarios estimados.
 
 - **`build_dataset.py`**: construye el dataset de modelado a partir del dataset de juegos limpio.
-- **`split_dataset.py`**: divide el dataset de modelado en conjuntos de entrenamiento y prueba de forma estratificada y reproducible.
+- **`split_dataset.py`**: divide el dataset de modelado en conjuntos de entrenamiento y prueba de forma aleatoria y reproducible, sin estratificación.
 
 ### `src/scripts/`
 
@@ -251,7 +251,9 @@ py -m src.scripts.run_build_dataset --overwrite
 py -m src.scripts.run_split
 ```
 
-Divide `src/data/processed/model_dataset.csv` en `train.csv` y `test.csv` con una proporción 80/20, estratificada por `exito` y con semilla reproducible. También genera `src/reports/features/split.json` con las distribuciones, hashes y conteos de cada partición.
+Divide `src/data/processed/model_dataset.csv` en `train.csv` y `test.csv` con una proporción 80/20 y semilla reproducible. Al ser regresión, no se estratifica por clases. El target continuo `owners_midpoint` es el punto medio del intervalo de propietarios estimados; la aplicación puede considerar exitoso un juego cuando la predicción alcance el umbral de 20.000, sin convertir esa regla en el target de entrenamiento. También genera `src/reports/features/split.json` con estadísticas del target, hashes y conteos de cada partición.
+
+En los datos actuales, el punto medio sigue teniendo una distribución asimétrica, aunque alrededor del 20% de los valores son cero (frente a casi el 80% usando el límite inferior). Al implementar el entrenamiento, conviene evaluar entrenar sobre `log1p(owners_midpoint)` e invertir la transformación de las predicciones con `expm1` antes de compararlas con el umbral de 20.000. Esa transformación no se aplica al dataset de entrada.
 
 Para sobrescribir las salidas existentes:
 

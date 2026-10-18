@@ -10,7 +10,7 @@ PROCESSED = PROJECT_ROOT / "data" / "processed"
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Split train/test (80/20, estratificado)")
+    parser = argparse.ArgumentParser(description="Split train/test (80/20, regresión)")
     parser.add_argument("--input-file", type=Path, default=PROCESSED / "model_dataset.csv")
     parser.add_argument("--train-file", type=Path, default=PROCESSED / "train.csv")
     parser.add_argument("--test-file", type=Path, default=PROCESSED / "test.csv")
