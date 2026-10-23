@@ -171,6 +171,11 @@ class DatasetBuilder:
             ),
             "balanceo": "ninguno; se conservan todas las filas válidas",
             "filas_salida": len(data),
+            "vocabulario_multi_hot": (
+                f"frecuencias calculadas solo con train (test_size={TEST_SIZE}, "
+                f"random_state={RANDOM_STATE}); las columnas se aplican a todas "
+                "las filas"
+            ),
             "estadisticas_target": {
                 str(k): float(v) if k != "count" else int(v)
                 for k, v in target_statistics.items()
