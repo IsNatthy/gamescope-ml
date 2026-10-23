@@ -10,7 +10,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Construye model_dataset.csv (features + target balanceado)"
+        description="Construye model_dataset.csv para regresión"
     )
     parser.add_argument(
         "--input-file", type=Path,

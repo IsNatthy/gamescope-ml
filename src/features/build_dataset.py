@@ -9,16 +9,16 @@ from pathlib import Path
 import pandas as pd
 
 from src.cleaning.normalizer import file_hash, snake_case
+from src.features.split_config import RANDOM_STATE, TEST_SIZE, split_indices
 
-# exito = 1 si el límite inferior de estimated_owners es >= este umbral.
-OWNERS_THRESHOLD = 20_000
+# La regla se aplica después, sobre la predicción continua.
+SUCCESS_THRESHOLD = 20_000
 TOP_GENRES = 30
 TOP_CATEGORIES = 20
 TOP_TAGS = 50
 # Categorías que Steam asigna tras el lanzamiento: se excluyen por data leakage.
 EXCLUDED_CATEGORIES = {"Steam Trading Cards", "Family Sharing", "Remote Play Together"}
 MIN_ROWS = 35_000  # mínimo exigido por la rúbrica
-RANDOM_STATE = 42
 
 # Solo se leen estas columnas: lo conocido ANTES del lanzamiento.
 USE_COLUMNS = [
@@ -36,7 +36,7 @@ LEAKAGE_COLUMNS = [
 ]
 
 TRACE_COLUMNS = ["appid", "name"]
-TARGET = "exito"
+TARGET = "owners_midpoint"
 
 
 def parse_list(value) -> list[str]:
@@ -54,9 +54,9 @@ def parse_list(value) -> list[str]:
     return [item.strip() for item in text.split(",") if item.strip()]
 
 
-def multi_hot(lists: pd.Series, size: int, prefix: str):
-    """Crea una columna 0/1 por cada uno de los `size` nombres más frecuentes."""
-    counts = Counter(name for items in lists for name in set(items))
+def multi_hot(lists: pd.Series, fit_lists: pd.Series, size: int, prefix: str):
+    """Codifica los nombres más frecuentes en train sobre todas las filas."""
+    counts = Counter(name for items in fit_lists for name in set(items))
     names = [name for name, _ in counts.most_common(size)]
     sets = lists.map(set)
     columns = {}
@@ -69,7 +69,7 @@ def multi_hot(lists: pd.Series, size: int, prefix: str):
 
 
 class DatasetBuilder:
-    """Genera model_dataset.csv: features pre-lanzamiento + target balanceado."""
+    """Genera features pre-lanzamiento y un target numérico para regresión."""
 
     def build(self, input_file: Path, output_file: Path, report_file: Path,
               overwrite: bool = False) -> dict:
@@ -85,12 +85,19 @@ class DatasetBuilder:
         )
         rows_input = len(df)
 
-        # --- Target: límite inferior del rango de dueños estimados ---
-        owners = df["estimated_owners"].str.extract(r"^\s*(\d+)\s*-")[0]
-        df = df[owners.notna()].copy()
-        owners = owners[owners.notna()].astype("int64")
+        # Steam proporciona intervalos; el punto medio es una estimación más
+        # representativa que usar siempre el límite inferior.
+        owner_bounds = df["estimated_owners"].str.extract(
+            r"^\s*(\d+)\s*-\s*(\d+)\s*$"
+        ).apply(pd.to_numeric, errors="coerce")
+        valid_bounds = (
+            owner_bounds.notna().all(axis=1)
+            & owner_bounds[0].le(owner_bounds[1])
+        )
+        df = df.loc[valid_bounds].copy()
+        owner_bounds = owner_bounds.loc[valid_bounds]
         rows_without_target = rows_input - len(df)
-        df[TARGET] = (owners >= OWNERS_THRESHOLD).astype("int8")
+        df[TARGET] = (owner_bounds[0] + owner_bounds[1]) / 2
 
         # --- Features estructuradas ---
         genres = df["genres"].map(parse_list)
@@ -122,30 +129,30 @@ class DatasetBuilder:
         })
 
         print("Generando variables multi-hot...", flush=True)
-        genre_cols, genre_names = multi_hot(genres, TOP_GENRES, "genre")
-        category_cols, category_names = multi_hot(categories, TOP_CATEGORIES, "cat")
-        tag_cols, tag_names = multi_hot(tags, TOP_TAGS, "tag")
+        train_indices, _ = split_indices(len(df))
+        train_index = df.iloc[train_indices].index
+        genre_cols, genre_names = multi_hot(
+            genres, genres.loc[train_index], TOP_GENRES, "genre"
+        )
+        category_cols, category_names = multi_hot(
+            categories, categories.loc[train_index], TOP_CATEGORIES, "cat"
+        )
+        tag_cols, tag_names = multi_hot(
+            tags, tags.loc[train_index], TOP_TAGS, "tag"
+        )
         data = pd.concat([data, genre_cols, category_cols, tag_cols], axis=1)
         data[TARGET] = df[TARGET]
 
-        # --- Balanceo por submuestreo de la clase mayoritaria ---
-        # Solo descarta filas (no aprende nada), por eso puede ir antes del split.
-        distribution_before = data[TARGET].value_counts().to_dict()
-        positives = data[data[TARGET] == 1]
-        negatives = data[data[TARGET] == 0]
-        if len(negatives) < len(positives):
-            raise ValueError("La clase 0 debería ser la mayoritaria")
-        balanced = pd.concat(
-            [positives, negatives.sample(n=len(positives), random_state=RANDOM_STATE)]
-        ).sample(frac=1, random_state=RANDOM_STATE).reset_index(drop=True)
-
         output_file.parent.mkdir(parents=True, exist_ok=True)
         report_file.parent.mkdir(parents=True, exist_ok=True)
-        balanced.to_csv(output_file, index=False, encoding="utf-8", lineterminator="\n")
+        data.to_csv(output_file, index=False, encoding="utf-8", lineterminator="\n")
 
         feature_columns = [
-            c for c in balanced.columns if c not in TRACE_COLUMNS + [TARGET]
+            c for c in data.columns if c not in TRACE_COLUMNS + [TARGET]
         ]
+        target_statistics = data[TARGET].describe(
+            percentiles=[0.25, 0.5, 0.75, 0.9, 0.99]
+        )
         report = {
             "generado_utc": datetime.now(timezone.utc).isoformat(),
             "entrada": str(input_file.resolve()),
@@ -154,12 +161,26 @@ class DatasetBuilder:
             "sha256_salida": file_hash(output_file),
             "filas_entrada": rows_input,
             "filas_sin_target_descartadas": rows_without_target,
-            "target": f"{TARGET} = 1 si el límite inferior de estimated_owners >= {OWNERS_THRESHOLD}",
-            "distribucion_antes_de_balancear": {str(k): int(v) for k, v in distribution_before.items()},
-            "balanceo": "submuestreo aleatorio de la clase 0 (random_state=42)",
-            "filas_salida": len(balanced),
-            "distribucion_salida": {str(k): int(v) for k, v in balanced[TARGET].value_counts().items()},
-            "cumple_minimo_35000": len(balanced) > MIN_ROWS,
+            "target": (
+                f"{TARGET} = (límite inferior + límite superior) / 2 "
+                "del intervalo estimated_owners"
+            ),
+            "vocabulario_multi_hot": (
+                f"frecuencias calculadas solo con train (test_size={TEST_SIZE}, "
+                f"random_state={RANDOM_STATE}); las columnas se aplican a todas "
+                "las filas"
+            ),
+            "regla_exito_posterior": (
+                f"exitoso si la predicción >= {SUCCESS_THRESHOLD}; "
+                "esta regla no se usa para construir el target"
+            ),
+            "balanceo": "ninguno; se conservan todas las filas válidas",
+            "filas_salida": len(data),
+            "estadisticas_target": {
+                str(k): float(v) if k != "count" else int(v)
+                for k, v in target_statistics.items()
+            },
+            "cumple_minimo_35000": len(data) > MIN_ROWS,
             "columnas_trazabilidad": TRACE_COLUMNS,
             "columnas_features": feature_columns,
             "columnas_excluidas_por_leakage": LEAKAGE_COLUMNS,
@@ -167,14 +188,14 @@ class DatasetBuilder:
             "categories_incluidas": category_names,
             "tags_incluidos": tag_names,
             "faltantes_en_salida": {
-                c: int(v) for c, v in balanced.isna().sum().items() if v
+                c: int(v) for c, v in data.isna().sum().items() if v
             },
         }
         report_file.write_text(
             json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
         )
 
-        print(f"Listo: {output_file} ({len(balanced):,} filas, {len(feature_columns)} features)")
+        print(f"Listo: {output_file} ({len(data):,} filas, {len(feature_columns)} features)")
         if not report["cumple_minimo_35000"]:
             print(f"ADVERTENCIA: se esperaban más de {MIN_ROWS:,} filas.")
         return report

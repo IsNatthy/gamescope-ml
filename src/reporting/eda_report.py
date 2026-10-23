@@ -1,4 +1,4 @@
-"""Gráficos y resumen del EDA (semana 7), calculados solo sobre train."""
+"""Gráficos y resumen del EDA de regresión, calculados solo sobre train."""
 
 from pathlib import Path
 
@@ -10,10 +10,8 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 
-TARGET = "exito"
-LABELS = {0: "Sin éxito", 1: "Éxito"}
-ORDER = list(LABELS.values())
-NON_FEATURES = {"appid", "name", TARGET, "clase", "price_log"}
+TARGET = "owners_midpoint"
+NON_FEATURES = {"appid", "name", TARGET, "owners_log", "price_log"}
 CORR_COLUMNS = ["price", "required_age", "n_languages", "n_audio_languages",
                 "release_year", "n_genres", "n_categories", "n_tags"]
 SAMPLE_SIZE = 3000
@@ -44,15 +42,22 @@ class EDAReport:
 
         df = pd.read_csv(train_file, dtype={"appid": str},
                          na_values=[""], keep_default_na=False)
-        df["clase"] = df[TARGET].map(LABELS)
-        df["price_log"] = np.log1p(df["price"].clip(lower=0))
+        df[TARGET] = pd.to_numeric(df[TARGET], errors="raise")
+        df = pd.concat([
+            df,
+            pd.DataFrame({
+                "owners_log": np.log1p(df[TARGET]),
+                "price_log": np.log1p(df["price"].clip(lower=0)),
+            }, index=df.index),
+        ], axis=1)
         features = [c for c in df.columns if c not in NON_FEATURES]
         print(f"EDA sobre train: {len(df):,} filas, {len(features)} features", flush=True)
 
-        # 1. Univariado
+        # 1. Distribución univariada
         fig, ax = plt.subplots(figsize=(5, 4))
-        sns.countplot(data=df, x="clase", order=ORDER, ax=ax)
-        ax.set_title("Distribución del target (train)")
+        sns.histplot(data=df, x="owners_log", bins=50, kde=True, ax=ax)
+        ax.set_xlabel("ln(1 + punto medio de propietarios estimados)")
+        ax.set_title("Distribución del target de regresión (train)")
         _save(fig, output_dir / "01_target.png")
 
         p99 = df["price"].quantile(0.99)
@@ -81,44 +86,49 @@ class EDAReport:
         else:
             print("  (sin valores faltantes: no se genera 04_faltantes.png)")
 
-        # 2. Bivariado
+        # 2. Relación de variables con el target continuo
         fig, axes = plt.subplots(1, 3, figsize=(15, 4))
         for ax, col in zip(axes, ["price_log", "n_languages", "n_tags"]):
-            sns.violinplot(data=df, x="clase", y=col, order=ORDER,
-                           inner="quartile", ax=ax)
-            ax.set_title(f"{col} por clase")
-        _save(fig, output_dir / "05_violin_por_clase.png")
+            sns.scatterplot(data=df, x=col, y="owners_log", alpha=0.35,
+                            s=12, ax=ax)
+            ax.set_ylabel("ln(1 + punto medio de propietarios)")
+            ax.set_title(f"{col} vs. target")
+        _save(fig, output_dir / "05_target_por_features.png")
 
-        by_year = df.groupby("release_year")[TARGET].agg(["mean", "size"])
+        by_year = df.groupby("release_year")[TARGET].agg(["median", "size"])
         by_year = by_year[by_year["size"] >= 30]
         fig, ax = plt.subplots(figsize=(8, 4))
-        sns.lineplot(x=by_year.index, y=by_year["mean"], marker="o", ax=ax)
-        ax.axhline(0.5, color="gray", linestyle="--")
-        ax.set_ylabel("proporción de éxito (dataset balanceado)")
-        ax.set_title("Éxito por año de lanzamiento")
-        _save(fig, output_dir / "06_exito_por_anio.png")
+        sns.lineplot(x=by_year.index, y=np.log1p(by_year["median"]),
+                     marker="o", ax=ax)
+        ax.set_ylabel("ln(1 + mediana del punto medio de propietarios)")
+        ax.set_title("Target por año de lanzamiento")
+        _save(fig, output_dir / "06_target_por_anio.png")
 
         genre_cols = [c for c in df.columns if c.startswith("genre_")]
         genres = pd.DataFrame({
             "juegos": df[genre_cols].sum(),
-            "tasa_exito": [df.loc[df[c] == 1, TARGET].mean() for c in genre_cols],
+            "mediana_owners_midpoint": [
+                df.loc[df[c] == 1, TARGET].median() for c in genre_cols
+            ],
         })
         genres.index = [c.removeprefix("genre_") for c in genre_cols]
         top = genres.nlargest(15, "juegos")
         fig, axes = plt.subplots(1, 2, figsize=(13, 5))
         sns.barplot(x=top["juegos"], y=top.index, ax=axes[0])
         axes[0].set_title("Juegos por género (top 15)")
-        sns.barplot(x=top["tasa_exito"], y=top.index, ax=axes[1])
-        axes[1].axvline(0.5, color="gray", linestyle="--")
-        axes[1].set_title("Proporción de éxito por género (base = 0.5)")
-        _save(fig, output_dir / "07_generos.png")
+        sns.barplot(x=np.log1p(top["mediana_owners_midpoint"]),
+                    y=top.index, ax=axes[1])
+        axes[1].set_xlabel("ln(1 + mediana del punto medio de propietarios)")
+        axes[1].set_title("Target mediano por género")
+        _save(fig, output_dir / "07_target_por_genero.png")
 
         sample = df.sample(min(SAMPLE_SIZE, len(df)), random_state=RANDOM_STATE)
         fig, ax = plt.subplots(figsize=(7, 5))
-        sns.scatterplot(data=sample, x="n_languages", y="price_log", hue="clase",
-                        hue_order=ORDER, alpha=0.5, ax=ax)
-        ax.set_title("Precio (log) vs número de idiomas")
-        _save(fig, output_dir / "08_scatter_precio_idiomas.png")
+        sns.scatterplot(data=sample, x="n_languages", y="owners_log",
+                        hue="price_log", palette="viridis", alpha=0.5, ax=ax)
+        ax.set_ylabel("ln(1 + punto medio de propietarios)")
+        ax.set_title("Target vs idiomas (color = precio log)")
+        _save(fig, output_dir / "08_scatter_target_idiomas.png")
 
         # 3. Multivariado
         for method in ("pearson", "spearman"):
@@ -148,8 +158,8 @@ class EDAReport:
         print("  pares_correlacionados.csv", flush=True)
 
         pair_data = sample[["price_log", "n_languages", "n_tags",
-                            "release_year", "clase"]].dropna().head(2000)
-        grid = sns.pairplot(pair_data, hue="clase", hue_order=ORDER, corner=True,
+                            "release_year", "owners_log"]].dropna().head(2000)
+        grid = sns.pairplot(pair_data, corner=True,
                             plot_kws={"alpha": 0.4, "s": 10})
         grid.savefig(output_dir / "11_pairplot.png", dpi=100)
         plt.close("all")
@@ -176,8 +186,10 @@ class EDAReport:
                    "release_year", "n_genres", "n_categories", "n_tags"]
         lines = ["# Resumen del EDA (train)", "",
                  f"- Filas: {len(df):,}. Features: {len(features)}.",
-                 "- Distribución del target: "
-                 + ", ".join(f"{k}={v:,}" for k, v in df['clase'].value_counts().items()),
+                 f"- Target (`{TARGET}`):", "```",
+                 df[TARGET].describe(
+                     percentiles=[0.25, 0.5, 0.75, 0.9, 0.99]
+                 ).round(2).to_string(), "```",
                  f"- Columnas con faltantes: {len(missing)}.", "",
                  "## Estadísticos", "", "```",
                  df[numeric].describe().round(2).to_string(), "```", "",
@@ -192,7 +204,7 @@ class EDAReport:
         expensive = df.nlargest(10, "price")[["appid", "name", "price"]]
         lines += ["", "## 10 precios más altos (investigar: ¿error o caso real?)", "",
                   "```", expensive.to_string(index=False), "```", "",
-                  "## Géneros: juegos y proporción de éxito", "", "```",
+                  "## Géneros: juegos y mediana del target", "", "```",
                   genres.sort_values("juegos", ascending=False).round(3).to_string(), "```", "",
                   "## Top 15 correlaciones (Spearman) con el target", "", "```",
                   with_target.reindex(with_target.abs().sort_values(
@@ -202,8 +214,8 @@ class EDAReport:
                   "## Insights (completar uno por figura)", ""]
         lines += [f"- {name}: " for name in [
             "01_target", "02_price", "03_boxplots", "04_faltantes",
-            "05_violin_por_clase", "06_exito_por_anio", "07_generos",
-            "08_scatter_precio_idiomas", "09_corr_pearson/spearman",
+            "05_target_por_features", "06_target_por_anio", "07_target_por_genero",
+            "08_scatter_target_idiomas", "09_corr_pearson/spearman",
             "10_corr_con_target", "11_pairplot", "12_resenas"]]
         (out / "resumen_eda.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
         print("  resumen_eda.md", flush=True)
