@@ -5,13 +5,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import pandas as pd
-from sklearn.model_selection import train_test_split
-
 from src.cleaning.normalizer import file_hash
+from src.features.split_config import RANDOM_STATE, TEST_SIZE, split_indices
 
 TARGET = "owners_midpoint"
-TEST_SIZE = 0.2
-RANDOM_STATE = 42
 
 
 class DatasetSplitter:
@@ -36,9 +33,8 @@ class DatasetSplitter:
         if df[TARGET].isna().any():
             raise ValueError(f"El target {TARGET} contiene valores faltantes")
 
-        train, test = train_test_split(
-            df, test_size=TEST_SIZE, random_state=RANDOM_STATE
-        )
+        train_indices, test_indices = split_indices(len(df))
+        train, test = df.iloc[train_indices], df.iloc[test_indices]
         if set(train["appid"]) & set(test["appid"]):
             raise ValueError("Hay appid repetidos entre train y test")
 

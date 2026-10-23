@@ -14,7 +14,7 @@ REPORT_DIR = ROOT / "reports" / "models"
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--input", type=Path, default=PROCESSED / "steam_game_reviews_clean.csv")
+    parser.add_argument("--input", type=Path, default=PROCESSED / "reviews_train.csv")
     parser.add_argument("--max-rows", type=int, default=30_000)
     parser.add_argument("--min-topic-size", type=int, default=50)
     args = parser.parse_args()

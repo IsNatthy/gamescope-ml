@@ -1,4 +1,4 @@
-"""Entrena un clasificador BERT de sentimiento con reseñas de Steam.
+"""Entrena BERT con las particiones de reseñas agrupadas por appid.
 
 Usa ``review`` como texto y ``voted_up`` como etiqueta inicial. Esta etiqueta
 es un proxy de sentimiento y debe documentarse como tal en el informe.
@@ -11,7 +11,6 @@ from pathlib import Path
 
 import pandas as pd
 from sklearn.metrics import accuracy_score, classification_report, f1_score
-from sklearn.model_selection import train_test_split
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -22,9 +21,10 @@ REPORT_DIR = ROOT / "reports" / "models"
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--input", type=Path, default=PROCESSED / "steam_game_reviews_clean.csv")
+    parser.add_argument("--train", type=Path, default=PROCESSED / "reviews_train.csv")
+    parser.add_argument("--test", type=Path, default=PROCESSED / "reviews_test.csv")
     parser.add_argument("--max-rows", type=int, default=20_000,
-                        help="Máximo de reseñas; reduce RAM y tiempo de entrenamiento.")
+                        help="Máximo de reseñas por partición; reduce RAM y tiempo.")
     parser.add_argument("--epochs", type=int, default=1)
     parser.add_argument("--batch-size", type=int, default=4)
     parser.add_argument("--max-length", type=int, default=128)
@@ -53,20 +53,27 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Dispositivo: {device}")
 
-    df = pd.read_csv(
-        args.input, usecols=["review", "voted_up"], nrows=args.max_rows,
-        dtype={"review": "string", "voted_up": "string"}, keep_default_na=False,
-    )
-    df["review"] = df["review"].fillna("").str.strip()
-    labels = df["voted_up"].str.lower().map({"true": 1, "false": 0, "1": 1, "0": 0})
-    df = df.loc[df["review"].str.len().ge(10) & labels.notna()].copy()
-    df["label"] = labels.loc[df.index].astype("int64")
-    if len(df) < 100 or df["label"].nunique() < 2:
-        raise ValueError("No hay suficientes reseñas o clases para entrenar BERT.")
+    def load_partition(path):
+        frame = pd.read_csv(
+            path, usecols=["review", "voted_up"], nrows=args.max_rows,
+            dtype={"review": "string", "voted_up": "string"},
+            keep_default_na=False,
+        )
+        frame["review"] = frame["review"].fillna("").str.strip()
+        labels = frame["voted_up"].str.lower().map(
+            {"true": 1, "false": 0, "1": 1, "0": 0}
+        )
+        frame = frame.loc[frame["review"].str.len().ge(10) & labels.notna()].copy()
+        frame["label"] = labels.loc[frame.index].astype("int64")
+        return frame
 
-    train_df, test_df = train_test_split(
-        df, test_size=0.2, random_state=42, stratify=df["label"]
-    )
+    train_df = load_partition(args.train)
+    test_df = load_partition(args.test)
+    if len(train_df) < 100 or train_df["label"].nunique() < 2:
+        raise ValueError("No hay suficientes reseñas o clases en train para BERT.")
+    if len(test_df) < 100 or test_df["label"].nunique() < 2:
+        raise ValueError("No hay suficientes reseñas o clases en test para BERT.")
+
     tokenizer = AutoTokenizer.from_pretrained(args.model_name)
     model = AutoModelForSequenceClassification.from_pretrained(
         args.model_name, num_labels=2
@@ -109,7 +116,7 @@ def main():
             optimizer.step()
             total_loss += float(output.loss.detach().cpu())
             if step % 100 == 0:
-                print(f"época {epoch + 1}, lote {step}, pérdida media {total_loss / step:.4f}")
+                print(f"epoch {epoch + 1}, batch {step}, mean loss {total_loss / step:.4f}")
 
     model.eval()
     actual, predicted = [], []
@@ -124,7 +131,8 @@ def main():
     metrics = {
         "model": args.model_name,
         "device": str(device),
-        "rows": len(df),
+        "train_rows": len(train_df),
+        "test_rows": len(test_df),
         "epochs": args.epochs,
         "batch_size": args.batch_size,
         "max_length": args.max_length,

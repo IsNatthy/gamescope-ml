@@ -147,7 +147,21 @@ src/reports/models/success_models.json
 El ganador es el que tenga el menor MAE/RMSE y un R² razonable. No se debe
 escoger solamente por una métrica sin revisar las demás.
 
-## 7. Entrenar BERT
+## 7. Preparar las reseñas
+
+El nuevo flujo de reseñas depura el texto, balancea `voted_up` y separa por
+`appid`, para evitar que reseñas del mismo juego aparezcan en train y test.
+
+```powershell
+python -m src.scripts.run_cleaning --dataset reviews
+python -m src.scripts.run_build_reviews_dataset --overwrite
+python -m src.scripts.run_split_reviews --overwrite
+python -m src.scripts.run_reviews_eda
+```
+
+Esto genera `reviews_train.csv`, `reviews_test.csv` y los reportes de reseñas.
+
+## 8. Entrenar BERT
 
 El archivo de reseñas limpio contiene:
 
@@ -193,7 +207,7 @@ Si aparece un error de memoria GPU, reduce el batch:
 python -m src.scripts.run_train_bert --max-rows 5000 --batch-size 1 --max-length 96
 ```
 
-## 8. Entrenar BERTopic
+## 9. Entrenar BERTopic
 
 BERTopic encuentra grupos de reseñas con temas similares. Empieza con pocas
 reseñas:
@@ -222,7 +236,7 @@ src/reports/models/bertopic_review_topics.csv
 `bertopic_topics.csv` contiene las palabras representativas de cada tema.
 `bertopic_review_topics.csv` permite saber qué tema recibió cada reseña.
 
-## 9. Cómo interpretar el resultado de reseñas
+## 10. Cómo interpretar el resultado de reseñas
 
 BERTopic descubre temas como:
 
@@ -249,7 +263,7 @@ Menciones negativas: 68%
 Recomendación: revisar velocidad y respuesta del combate.
 ```
 
-## 10. Cómo cuidar el equipo
+## 11. Cómo cuidar el equipo
 
 No comiences con todo el dataset de reseñas. Aumenta el límite gradualmente.
 
@@ -266,13 +280,16 @@ lo que vuelve lento o inestable el equipo. Normalmente no destruye físicamente
 la RAM, pero sí puede bloquear el sistema o hacer perder trabajo. Por eso los
 scripts tienen límites de filas, batch y número de hilos.
 
-## 11. Orden resumido
+## 12. Orden resumido
 
 ```powershell
 python -m src.scripts.run_cleaning --dataset games
 python -m src.scripts.run_build_dataset
 python -m src.scripts.run_split
 python -m src.scripts.run_train_success --threads 2 --trees 100
+python -m src.scripts.run_cleaning --dataset reviews
+python -m src.scripts.run_build_reviews_dataset --overwrite
+python -m src.scripts.run_split_reviews --overwrite
 python -m src.scripts.run_train_bert --max-rows 5000 --batch-size 2 --epochs 1
 python -m src.scripts.run_train_bertopic --max-rows 5000 --min-topic-size 40
 ```

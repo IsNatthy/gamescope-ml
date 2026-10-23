@@ -9,6 +9,7 @@ from pathlib import Path
 import pandas as pd
 
 from src.cleaning.normalizer import file_hash, snake_case
+from src.features.split_config import RANDOM_STATE, TEST_SIZE, split_indices
 
 # La regla se aplica después, sobre la predicción continua.
 SUCCESS_THRESHOLD = 20_000
@@ -53,9 +54,9 @@ def parse_list(value) -> list[str]:
     return [item.strip() for item in text.split(",") if item.strip()]
 
 
-def multi_hot(lists: pd.Series, size: int, prefix: str):
+def multi_hot(lists: pd.Series, fit_lists: pd.Series, size: int, prefix: str):
     """Crea una columna 0/1 por cada uno de los `size` nombres más frecuentes."""
-    counts = Counter(name for items in lists for name in set(items))
+    counts = Counter(name for items in fit_lists for name in set(items))
     names = [name for name, _ in counts.most_common(size)]
     sets = lists.map(set)
     columns = {}
@@ -128,9 +129,17 @@ class DatasetBuilder:
         })
 
         print("Generando variables multi-hot...", flush=True)
-        genre_cols, genre_names = multi_hot(genres, TOP_GENRES, "genre")
-        category_cols, category_names = multi_hot(categories, TOP_CATEGORIES, "cat")
-        tag_cols, tag_names = multi_hot(tags, TOP_TAGS, "tag")
+        train_indices, _ = split_indices(len(df))
+        train_index = df.iloc[train_indices].index
+        genre_cols, genre_names = multi_hot(
+            genres, genres.loc[train_index], TOP_GENRES, "genre"
+        )
+        category_cols, category_names = multi_hot(
+            categories, categories.loc[train_index], TOP_CATEGORIES, "cat"
+        )
+        tag_cols, tag_names = multi_hot(
+            tags, tags.loc[train_index], TOP_TAGS, "tag"
+        )
         data = pd.concat([data, genre_cols, category_cols, tag_cols], axis=1)
         data[TARGET] = df[TARGET]
 

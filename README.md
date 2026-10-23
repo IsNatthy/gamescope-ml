@@ -133,6 +133,12 @@ Construye el dataset de modelado de regresión con features disponibles antes de
 - **`build_dataset.py`**: construye el dataset de modelado a partir del dataset de juegos limpio.
 - **`split_dataset.py`**: divide el dataset de modelado en conjuntos de entrenamiento y prueba de forma aleatoria y reproducible, sin estratificación.
 
+El flujo de reseñas se prepara de forma independiente:
+
+- `run_build_reviews_dataset`: depura y balancea las reseñas usando `review` y `voted_up`.
+- `run_split_reviews`: divide por `appid`, evitando que reseñas del mismo juego queden en train y test.
+- `run_reviews_eda`: genera el EDA específico de reseñas.
+
 ### `src/scripts/`
 
 Contiene los puntos de entrada que permiten ejecutar las operaciones desde la terminal.
