@@ -189,10 +189,13 @@ def fit_search(name, variant, x_train, y_train, args):
 def evaluate_search(name, variant, search, x_test, y_test, features, args):
     prediction_model = search.predict(x_test)
     prediction = inverse_target(prediction_model, variant)
+    best_index = search.best_index_
     result = {
         "model": name,
         "target_variant": variant,
         "cv_mae_original": float(-search.best_score_),
+        "cv_mae_original_std": float(search.cv_results_["std_test_score"][best_index]),
+        "cv_folds": args.cv,
         "best_params": search.best_params_,
         "test": metric_summary(y_test, prediction),
         "test_by_segment": segment_metrics(y_test, prediction),
