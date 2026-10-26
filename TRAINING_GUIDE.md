@@ -131,11 +131,14 @@ El script entrena ambos modelos y muestra:
 - RMSE: penaliza más los errores grandes; menor es mejor.
 - R²: proporción de variabilidad explicada; mayor es mejor.
 
-Los modelos se guardan en:
+Los pipelines entrenados se guardan en:
 
 ```text
-src/models/random_forest_regressor.joblib
-src/models/xgboost_regressor.joblib
+src/models/random_forest_raw.joblib
+src/models/random_forest_log.joblib
+src/models/xgboost_raw.joblib
+src/models/xgboost_log.joblib
+src/models/ridge_log.joblib
 ```
 
 Y las métricas en:
@@ -160,6 +163,61 @@ python -m src.scripts.run_reviews_eda
 ```
 
 Esto genera `reviews_train.csv`, `reviews_test.csv` y los reportes de reseñas.
+
+## Mejoras del entrenamiento de regresión
+
+El entrenamiento completo incluye:
+
+- líneas base de media y mediana;
+- Ridge como referencia lineal;
+- variantes del target original y `log1p`;
+- validación cruzada de cinco folds;
+- búsqueda limitada de hiperparámetros;
+- imputación aprendida dentro de cada pipeline;
+- MAE, RMSE, MedAE, R² y métricas logarítmicas;
+- métricas por segmentos;
+- importancia por permutación del modelo ganador.
+
+La regla de 20.000 no se calcula en este script: pertenece a la aplicación.
+
+Ejecuta una búsqueda controlada:
+
+```powershell
+python -m src.scripts.run_train_success --threads 2 --trees 100 --cv 5 --search-iterations 2
+```
+
+La búsqueda puede tardar porque prueba varios modelos y folds. Para una
+prueba rápida:
+
+```powershell
+python -m src.scripts.run_train_success --threads 2 --trees 50 --cv 3 --search-iterations 1 --skip-importance
+```
+
+Para estudiar si los tags aportan información potencialmente posterior al
+lanzamiento, repite el experimento sin ellos:
+
+```powershell
+python -m src.scripts.run_train_success --without-tags --threads 2 --trees 100 --cv 5 --search-iterations 2
+```
+
+El informe completo se guarda en:
+
+```text
+src/reports/models/success_models.json
+src/reports/models/success_feature_importance.csv
+```
+
+Para evaluar la generalización a juegos recientes, ejecuta además:
+
+```powershell
+python -m src.scripts.run_temporal_success --threads 2 --trees 100
+```
+
+Su informe se guarda en:
+
+```text
+src/reports/models/success_models_temporal.json
+```
 
 ## 8. Entrenar BERT
 
@@ -286,7 +344,7 @@ scripts tienen límites de filas, batch y número de hilos.
 python -m src.scripts.run_cleaning --dataset games
 python -m src.scripts.run_build_dataset
 python -m src.scripts.run_split
-python -m src.scripts.run_train_success --threads 2 --trees 100
+python -m src.scripts.run_train_success --threads 2 --trees 50 --cv 3 --search-iterations 1 --skip-importance
 python -m src.scripts.run_cleaning --dataset reviews
 python -m src.scripts.run_build_reviews_dataset --overwrite
 python -m src.scripts.run_split_reviews --overwrite
