@@ -162,7 +162,9 @@ python -m src.scripts.run_split_reviews --overwrite
 python -m src.scripts.run_reviews_eda
 ```
 
-Esto genera `reviews_train.csv`, `reviews_test.csv` y los reportes de reseñas.
+Esto genera `reviews_train.csv`, `reviews_validation.csv`, `reviews_test.csv` y
+los reportes de reseñas. La división es aproximadamente 80/10/10, estratifica
+`voted_up` y mantiene cada `appid` en una sola partición.
 
 ## Mejoras del entrenamiento de regresión
 
@@ -231,17 +233,26 @@ voted_up → etiqueta positiva o negativa aproximada
 `voted_up` no es una medición perfecta del sentimiento; se utiliza como proxy
 y esa limitación debe aparecer en el informe.
 
-Para proteger la máquina, comienza con 5.000 reseñas:
+El script entrena dos variantes de BERT: estándar y ponderada por frecuencia
+de clase. También ejecuta una línea base TF-IDF + regresión logística para
+saber si BERT realmente aporta una mejora. La validación se usa para parada
+temprana y el test se reserva para la evaluación final.
+
+Para proteger la máquina, comienza con 5.000 reseñas por partición:
 
 ```powershell
-python -m src.scripts.run_train_bert --max-rows 5000 --batch-size 2 --epochs 1
+python -m src.scripts.run_train_bert --max-rows 5000 --batch-size 2 --epochs 2 --patience 1
 ```
 
-Si funciona y la memoria se mantiene estable:
+Después entrena la variante ponderada, que puede ayudar cuando hay más
+reseñas positivas que negativas:
 
 ```powershell
-python -m src.scripts.run_train_bert --max-rows 20000 --batch-size 4 --epochs 1
+python -m src.scripts.run_train_bert --weighted --max-rows 5000 --batch-size 2 --epochs 2 --patience 1
 ```
+
+Si la prueba funciona y la memoria se mantiene estable, aumenta gradualmente
+`--max-rows` a 10.000 o 20.000 y conserva `--batch-size 2`.
 
 El script detecta automáticamente la GPU. Si PyTorch detecta tu RTX 3050,
 mostrará `Dispositivo: cuda`; de lo contrario mostrará `Dispositivo: cpu`.
@@ -256,22 +267,31 @@ Los resultados se guardan en:
 
 ```text
 src/models/bert_sentiment/
-src/reports/models/bert_sentiment.json
+src/models/bert_sentiment_weighted/
+src/reports/models/bert_sentiment_standard.json
+src/reports/models/bert_sentiment_weighted.json
 ```
+
+Cada informe incluye accuracy, precisión/recall/F1 de la clase negativa,
+F1 macro, MCC, ROC-AUC, PR-AUC, ECE y el resultado del baseline TF-IDF. Para
+comparar las dos variantes, prioriza F1 macro, MCC y PR-AUC; revisa también
+la calibración ECE. No elijas por accuracy aislada.
 
 Si aparece un error de memoria GPU, reduce el batch:
 
 ```powershell
-python -m src.scripts.run_train_bert --max-rows 5000 --batch-size 1 --max-length 96
+python -m src.scripts.run_train_bert --max-rows 3000 --batch-size 1 --max-length 96 --no-tfidf
 ```
 
 ## 9. Entrenar BERTopic
 
-BERTopic encuentra grupos de reseñas con temas similares. Empieza con pocas
+BERTopic encuentra grupos de reseñas con temas similares. El script calcula
+NPMI, diversidad, porcentaje de outliers y estabilidad entre varias semillas.
+También ejecuta LDA y NMF como referencias no neuronales. Empieza con pocas
 reseñas:
 
 ```powershell
-python -m src.scripts.run_train_bertopic --max-rows 5000 --min-topic-size 40
+python -m src.scripts.run_train_bertopic --max-rows 5000 --eval-rows 2000 --stability-rows 2000 --baseline-rows 2000 --embedding-batch-size 16 --min-topic-size 40
 ```
 
 BERTopic usa la GPU, si PyTorch la detecta, para calcular embeddings. El
@@ -280,19 +300,29 @@ agrupamiento posterior puede seguir utilizando CPU y RAM.
 Después puedes aumentar gradualmente:
 
 ```powershell
-python -m src.scripts.run_train_bertopic --max-rows 30000 --min-topic-size 50
+python -m src.scripts.run_train_bertopic --max-rows 30000 --eval-rows 5000 --stability-rows 5000 --baseline-rows 5000 --embedding-batch-size 16 --min-topic-size 50
 ```
+
+Para una prueba rápida sin LDA/NMF usa `--skip-baselines`. Si falta VRAM,
+reduce `--embedding-batch-size` a 8 o 4. La estabilidad se resume con ARI y
+Jaccard de palabras entre semillas; valores más altos indican temas más
+reproducibles.
 
 Los resultados se guardan en:
 
 ```text
 src/models/bertopic_reviews/
+src/reports/models/bertopic_train_topics.csv
+src/reports/models/bertopic_validation_topics.csv
+src/reports/models/bertopic_test_topics.csv
 src/reports/models/bertopic_topics.csv
-src/reports/models/bertopic_review_topics.csv
+src/reports/models/bertopic_evaluation.json
 ```
 
 `bertopic_topics.csv` contiene las palabras representativas de cada tema.
-`bertopic_review_topics.csv` permite saber qué tema recibió cada reseña.
+Los tres archivos `bertopic_*_topics.csv` permiten saber qué tema recibió cada
+reseña en cada partición. `bertopic_evaluation.json` contiene NPMI, diversidad,
+outliers, estabilidad y las referencias LDA/NMF.
 
 ## 10. Cómo interpretar el resultado de reseñas
 
@@ -348,8 +378,9 @@ python -m src.scripts.run_train_success --threads 2 --trees 50 --cv 3 --search-i
 python -m src.scripts.run_cleaning --dataset reviews
 python -m src.scripts.run_build_reviews_dataset --overwrite
 python -m src.scripts.run_split_reviews --overwrite
-python -m src.scripts.run_train_bert --max-rows 5000 --batch-size 2 --epochs 1
-python -m src.scripts.run_train_bertopic --max-rows 5000 --min-topic-size 40
+python -m src.scripts.run_train_bert --max-rows 5000 --batch-size 2 --epochs 2 --patience 1
+python -m src.scripts.run_train_bert --weighted --max-rows 5000 --batch-size 2 --epochs 2 --patience 1
+python -m src.scripts.run_train_bertopic --max-rows 5000 --eval-rows 2000 --stability-rows 2000 --baseline-rows 2000 --embedding-batch-size 16 --min-topic-size 40
 ```
 
 No ejecutes el siguiente paso hasta comprobar que el anterior terminó sin

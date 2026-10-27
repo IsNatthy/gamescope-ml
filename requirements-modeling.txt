@@ -4,3 +4,5 @@ transformers
 accelerate
 bertopic
 sentence-transformers
+umap-learn
+hdbscan
