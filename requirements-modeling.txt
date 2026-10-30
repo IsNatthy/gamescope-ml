@@ -1,0 +1,8 @@
+# Modelos de texto opcionales; instalar después de requirements.txt.
+torch
+transformers
+accelerate
+bertopic
+sentence-transformers
+umap-learn
+hdbscan

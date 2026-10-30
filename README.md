@@ -1,6 +1,10 @@
 # Gamescope ML
 
-Pipeline modular para preparar, limpiar y analizar datasets de juegos y reseñas de Steam. El proyecto genera datasets reproducibles, particiones sin fuga de información y reportes de calidad y análisis exploratorio como base para futuros modelos de Machine Learning.
+Proyecto de preparación, limpieza, validación y análisis exploratorio de datasets de Steam, orientado al desarrollo de un flujo de Machine Learning para identificar oportunidades de nicho en el mercado de videojuegos.
+
+Actualmente, el proyecto incluye la preparación, validación y entrenamiento reproducible de modelos para los dos objetivos: regresión del número estimado de jugadores y análisis de reseñas.
+
+Las instrucciones detalladas para preparar los datos y entrenar los modelos se encuentran en [TRAINING_GUIDE.md](TRAINING_GUIDE.md).
 
 ## Estructura del proyecto
 
@@ -26,14 +30,11 @@ gamescope-ml/
     │   ├── __init__.py
     │   ├── cleaning_report.py
     │   ├── eda_report.py
-    │   ├── report_generator.py
-    │   └── reviews_eda_report.py
+    │   └── report_generator.py
     ├── features/
     │   ├── __init__.py
     │   ├── build_dataset.py
-    │   ├── build_reviews_dataset.py
-    │   ├── split_dataset.py
-    │   └── split_reviews_dataset.py
+    │   └── split_dataset.py
     ├── reports/
     │   ├── cleaning/
     │   ├── eda/
@@ -41,20 +42,21 @@ gamescope-ml/
     │   └── profiling/
     ├── scripts/
     │   ├── __init__.py
-    │   ├── run_build_reviews_dataset.py
     │   ├── run_cleaning.py
     │   ├── run_eda.py
     │   ├── run_header_fix.py
     │   ├── run_profiling.py
     │   ├── run_build_dataset.py
-    │   ├── run_reviews_eda.py
-    │   ├── run_split.py
-    │   └── run_split_reviews.py
+    │   └── run_split.py
     └── steam_analyzer/
         ├── __init__.py
         ├── config.py
         └── pipeline.py
 ```
+
+Los archivos `__init__.py` permiten organizar los directorios como paquetes de Python. Si alguno de los indicados no existe, debe crearse vacío para mantener esta estructura de paquetes.
+
+Los datasets, los reportes generados y el entorno virtual son archivos locales que no deben versionarse en Git.
 
 ## Requisitos
 
@@ -62,6 +64,8 @@ gamescope-ml/
 - pip.
 - Git, para trabajar con el repositorio.
 - Un entorno virtual de Python.
+
+Se recomienda utilizar la misma versión de Python en los entornos de desarrollo para reducir posibles incompatibilidades entre dependencias.
 
 ## Instalación y configuración
 
@@ -87,6 +91,8 @@ En Windows PowerShell:
 .\.venv\Scripts\Activate.ps1
 ```
 
+Una vez activado, la terminal mostrará `(.venv)` al inicio de la línea.
+
 ### 3. Instalar las dependencias
 
 Con el entorno virtual activado y situado en la raíz del proyecto:
@@ -94,6 +100,8 @@ Con el entorno virtual activado y situado en la raíz del proyecto:
 ```powershell
 python -m pip install -r requirements.txt
 ```
+
+El archivo `requirements.txt` contiene las dependencias necesarias para ejecutar el proyecto.
 
 ## Arquitectura modular
 
@@ -117,7 +125,6 @@ Agrupa las funcionalidades relacionadas con la generación de informes.
 - **`cleaning_report.py`**: genera los informes y registros derivados del proceso de limpieza, incluyendo las observaciones que deban revisarse.
 - **`eda_report.py`**: genera gráficos y un resumen del análisis exploratorio utilizando únicamente el conjunto de entrenamiento.
 - **`report_generator.py`**: contiene la funcionalidad de generación de reportes de profiling para explorar las características de los datasets.
-- **`reviews_eda_report.py`**: genera las figuras y el resumen del análisis exploratorio de reseñas utilizando únicamente el conjunto de entrenamiento.
 
 ### `src/features/`
 
@@ -125,6 +132,12 @@ Construye el dataset de modelado de regresión con features disponibles antes de
 
 - **`build_dataset.py`**: construye el dataset de modelado a partir del dataset de juegos limpio.
 - **`split_dataset.py`**: divide el dataset de modelado en conjuntos de entrenamiento y prueba de forma aleatoria y reproducible, sin estratificación.
+
+El flujo de reseñas se prepara de forma independiente:
+
+- `run_build_reviews_dataset`: depura y balancea las reseñas usando `review` y `voted_up`.
+- `run_split_reviews`: divide aproximadamente 80/10/10 por `appid`, evitando que reseñas del mismo juego queden en train, validation y test.
+- `run_reviews_eda`: genera el EDA específico de reseñas.
 
 ### `src/scripts/`
 
@@ -134,11 +147,14 @@ Contiene los puntos de entrada que permiten ejecutar las operaciones desde la te
 - **`run_cleaning.py`**: ejecuta la limpieza de los datasets. Permite seleccionar los juegos, las reseñas o ambos.
 - **`run_profiling.py`**: ejecuta la generación de reportes de profiling configurados en el proyecto.
 - **`run_build_dataset.py`**: construye el dataset de modelado a partir del dataset de juegos limpio.
-- **`run_build_reviews_dataset.py`**: construye el dataset de modelado de reseñas.
 - **`run_split.py`**: divide el dataset de modelado en `train.csv` y `test.csv`.
-- **`run_split_reviews.py`**: divide el dataset de reseñas en conjuntos de entrenamiento y prueba sin mezclar juegos entre ambos.
 - **`run_eda.py`**: genera el análisis exploratorio y sus figuras a partir de `train.csv`.
-- **`run_reviews_eda.py`**: genera el análisis exploratorio y sus figuras a partir de `reviews_train.csv`.
+- **`run_train_success.py`**: compara regresores para `owners_midpoint`, con variantes raw/log, validación cruzada, tuning e importancia por permutación.
+- **`run_temporal_success.py`**: evalúa la generalización temporal usando juegos recientes como test.
+- **`run_train_bert.py`**: entrena BERT estándar o ponderado y compara contra TF-IDF + regresión logística.
+- **`run_train_bertopic.py`**: entrena BERTopic y calcula coherencia, diversidad, outliers, estabilidad y referencias LDA/NMF.
+
+Estos scripts delegan las operaciones a los módulos correspondientes; no deben duplicar la lógica de limpieza ni de generación de informes.
 
 ### `src/steam_analyzer/`
 
@@ -146,6 +162,8 @@ Contiene la configuración y los componentes de coordinación general del análi
 
 - **`config.py`**: centraliza la configuración correspondiente al flujo general del proyecto.
 - **`pipeline.py`**: está destinado a coordinar las distintas etapas del procesamiento.
+
+La existencia de estos componentes no implica que todas las etapas del pipeline estén integradas o automatizadas en la ejecución actual.
 
 ### `src/data/`
 
@@ -165,7 +183,7 @@ Almacena los informes generados durante la ejecución.
 
 ## Ejecución del proyecto
 
-Ejecuta los comandos desde la raíz del repositorio. La forma `py -m src.scripts...` mantiene la estructura de imports del proyecto.
+**Importante:** ejecuta los siguientes comandos desde la raíz del repositorio, donde se encuentran `README.md` y `.gitignore`. Se utiliza `py -m src.scripts...` para mantener la convención de imports `from src.cleaning...` y `from src.reporting...`.
 
 ### 1. Corregir el encabezado del dataset de juegos
 
@@ -211,6 +229,8 @@ La limpieza se ejecuta de manera independiente para cada dataset; no se unen aut
 
 Los resultados se almacenan en `src/data/processed/` y los informes de limpieza en `src/reports/cleaning/`.
 
+**Nota sobre los archivos de salida:** si una ejecución anterior ya generó un archivo de salida, el proceso puede detenerse para evitar sobrescribirlo. Revisa el comportamiento implementado en `dataset_cleaner.py` antes de volver a ejecutar la limpieza. Conserva o elimina los resultados anteriores según corresponda.
+
 ### 3. Generar reportes de profiling
 
 Desde la raíz del proyecto:
@@ -219,7 +239,9 @@ Desde la raíz del proyecto:
 py -m src.scripts.run_profiling
 ```
 
-Genera los reportes de profiling definidos en `run_profiling.py` dentro de `src/reports/profiling/`.
+Este comando ejecuta el script de profiling y genera los reportes definidos en `run_profiling.py`. Los resultados se almacenan en `src/reports/profiling/`.
+
+Los reportes de profiling permiten explorar la distribución de los datos, los valores faltantes y otras características relevantes de los datasets.
 
 ### 4. Construir el dataset de features
 
@@ -229,7 +251,7 @@ py -m src.scripts.run_build_dataset
 
 Genera `src/data/processed/model_dataset.csv` y `src/reports/features/model_dataset.json`.
 
-Para sobrescribir las salidas existentes, añade `--overwrite`:
+Para sobrescribir las salidas existentes:
 
 ```powershell
 py -m src.scripts.run_build_dataset --overwrite
@@ -259,33 +281,28 @@ Después de dividir el dataset, ejecuta:
 py -m src.scripts.run_eda
 ```
 
-Genera las figuras y el resumen del análisis exploratorio de juegos sobre `src/data/processed/train.csv` en `src/reports/eda/`. Para consultar las rutas de entrada y salida:
+Genera las figuras y el resumen del análisis exploratorio sobre `src/data/processed/train.csv` en `src/reports/eda/`. Si existe `src/data/processed/steam_game_reviews_clean.csv`, incluye también el análisis de las reseñas. Para consultar o modificar las rutas de entrada y salida:
 
 ```powershell
 py -m src.scripts.run_eda --help
 ```
 
-### 7. Construir y analizar el dataset de reseñas
+### 7. Entrenar y evaluar los modelos
 
-Después de la limpieza de reseñas, ejecuta desde la raíz del repositorio:
+El flujo completo de entrenamiento, sus parámetros de memoria, las métricas y
+la interpretación de resultados están documentados paso a paso en
+[TRAINING_GUIDE.md](TRAINING_GUIDE.md). Incluye regresión con Random Forest y
+XGBoost, BERT estándar/ponderado, TF-IDF como baseline y BERTopic con LDA/NMF
+como referencias.
+
+Para instalar las dependencias opcionales de texto:
 
 ```powershell
-py -m src.scripts.run_build_reviews_dataset
-py -m src.scripts.run_split_reviews
-py -m src.scripts.run_reviews_eda
+py -m pip install -r requirements-modeling.txt
 ```
 
-`build_reviews_dataset.py` construye el dataset de modelado a partir de `steam_game_reviews_clean.csv`, conservando el texto crudo, la etiqueta `voted_up` y los campos de trazabilidad. El dataset se filtra, deduplica y balancea por submuestreo de la clase mayoritaria.
-
-`split_reviews_dataset.py` genera una partición 80/20 estratificada por `voted_up` y agrupada por `appid`, garantizando que ningún juego aparezca en train y test. `reviews_eda_report.py` genera el EDA utilizando únicamente `reviews_train.csv`.
-
-Las salidas son:
-
-- `src/data/processed/reviews_model_dataset.csv`, `reviews_train.csv` y `reviews_test.csv`.
-- `src/reports/features/reviews_model_dataset.json` y `reviews_split.json`.
-- `src/reports/eda/reviews/`, con las figuras y `resumen_eda.md`.
-
-Los scripts de construcción y división aceptan `--overwrite` para sobrescribir salidas existentes.
+No se versionan los datasets, modelos ni reportes generados; deben producirse
+localmente siguiendo la guía.
 
 ## Criterios de limpieza
 
@@ -302,4 +319,27 @@ El proceso contempla las reglas definidas en la configuración y en los componen
 - Validación de la estructura y consistencia de los archivos resultantes.
 - Generación de informes de limpieza y profiling.
 
-Las reglas concretas dependen de la configuración de cada dataset. Los archivos originales se mantienen como fuentes de entrada y los resultados se escriben en archivos separados.
+Las reglas concretas dependen de la configuración de cada dataset. Por tanto, esta lista describe las operaciones contempladas por el proceso y no implica que todas se apliquen de forma idéntica a ambos datasets.
+
+Los archivos originales se mantienen como fuentes de entrada. Los resultados de limpieza se escriben en archivos separados para evitar modificar directamente los datasets originales.
+
+## Control de versiones
+
+El archivo `.gitignore` excluye los elementos generados o específicos del entorno local, entre ellos:
+
+- Entornos virtuales.
+- Cachés y archivos temporales de Python.
+- Datasets CSV originales y procesados.
+- Reportes generados.
+- Archivos de configuración local que puedan contener secretos.
+
+El código fuente, la documentación y los archivos de configuración necesarios para reproducir el proyecto deben versionarse.
+
+## Estado actual y trabajo futuro
+
+El proyecto cuenta con una estructura modular para separar la limpieza, la validación, la generación de informes y la coordinación del análisis de los datasets de Steam.
+
+La integración de las predicciones en una aplicación y la generación de
+recomendaciones por aspecto son etapas posteriores. El entrenamiento ya genera
+los artefactos y métricas necesarios para comparar los modelos y seleccionar
+los candidatos que se integrarán en esa aplicación.

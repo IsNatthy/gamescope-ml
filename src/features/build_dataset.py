@@ -55,7 +55,7 @@ def parse_list(value) -> list[str]:
 
 
 def multi_hot(lists: pd.Series, fit_lists: pd.Series, size: int, prefix: str):
-    """Codifica los nombres más frecuentes en train sobre todas las filas."""
+    """Crea una columna 0/1 por cada uno de los `size` nombres más frecuentes."""
     counts = Counter(name for items in fit_lists for name in set(items))
     names = [name for name, _ in counts.most_common(size)]
     sets = lists.map(set)
@@ -165,17 +165,17 @@ class DatasetBuilder:
                 f"{TARGET} = (límite inferior + límite superior) / 2 "
                 "del intervalo estimated_owners"
             ),
-            "vocabulario_multi_hot": (
-                f"frecuencias calculadas solo con train (test_size={TEST_SIZE}, "
-                f"random_state={RANDOM_STATE}); las columnas se aplican a todas "
-                "las filas"
-            ),
             "regla_exito_posterior": (
                 f"exitoso si la predicción >= {SUCCESS_THRESHOLD}; "
                 "esta regla no se usa para construir el target"
             ),
             "balanceo": "ninguno; se conservan todas las filas válidas",
             "filas_salida": len(data),
+            "vocabulario_multi_hot": (
+                f"frecuencias calculadas solo con train (test_size={TEST_SIZE}, "
+                f"random_state={RANDOM_STATE}); las columnas se aplican a todas "
+                "las filas"
+            ),
             "estadisticas_target": {
                 str(k): float(v) if k != "count" else int(v)
                 for k, v in target_statistics.items()
