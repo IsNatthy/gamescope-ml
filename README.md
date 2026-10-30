@@ -4,7 +4,7 @@ Proyecto de preparación, limpieza, validación y análisis exploratorio de data
 
 Actualmente, el proyecto incluye la preparación, validación y entrenamiento reproducible de modelos para los dos objetivos: regresión del número estimado de jugadores y análisis de reseñas.
 
-Las instrucciones detalladas para preparar los datos y entrenar los modelos se encuentran en [TRAINING_GUIDE.md](TRAINING_GUIDE.md).
+Las instrucciones detalladas para preparar los datos y entrenar los modelos se encuentran en [TRAINING_GUIDE.md](TRAINING_GUIDE.md). La formulación y los resultados de regresión están en [MODELO_MATEMATICO.md](MODELO_MATEMATICO.md).
 
 ## Estructura del proyecto
 
@@ -13,6 +13,7 @@ gamescope-ml/
 ├── .gitignore
 ├── README.md
 ├── requirements.txt
+├── requirements-modeling.txt
 └── src/
     ├── __init__.py
     ├── cleaning/
@@ -40,6 +41,9 @@ gamescope-ml/
     │   ├── eda/
     │   ├── features/
     │   └── profiling/
+    ├── results/
+    │   ├── pendientes/
+    │   └── pendientes_resenas/
     ├── scripts/
     │   ├── __init__.py
     │   ├── run_cleaning.py
@@ -303,6 +307,32 @@ py -m pip install -r requirements-modeling.txt
 
 No se versionan los datasets, modelos ni reportes generados; deben producirse
 localmente siguiendo la guía.
+
+### Resultados experimentales de reseñas
+
+El dataset limpio de reseñas contiene 715.122 observaciones antes de balancear:
+130.859 negativas (18,30 %) y 584.263 positivas (81,70 %). El balanceo del
+constructor es un submuestreo global aleatorio de la clase positiva hasta
+130.859 por clase (`random_state=42`); no aplica un máximo por juego. Los
+resultados recientes de BERTopic descriptivo usan una muestra distinta, sin
+balanceo por clase, de hasta 50 reseñas por juego: 36.848 reseñas de 743 juegos.
+
+En esa muestra, BERTopic seleccionó `min_cluster_size=50` entre los valores
+50, 100 y 200 por su mayor NPMI calculada sobre el corpus descriptivo
+(0,3139), con 145 temas y 43,58 % de outliers antes de reducción. La
+integración usa el `voted_up` observado y el género principal del catálogo;
+al reducir outliers
+con estrategia de embeddings se reasignaron 16.059 reseñas. Estos análisis
+descriptivos no son resultados del clasificador BERT ni de la partición de
+test del piloto.
+
+Las tablas, datos de reproducción y la plantilla para revisión humana están
+bajo `src/results/pendientes_resenas/`. Para generar la plantilla, instalar
+las dependencias opcionales con `requirements-modeling.txt` y seguir los
+comandos de la sección de análisis descriptivo de reseñas en
+[TRAINING_GUIDE.md](TRAINING_GUIDE.md). Los datos tabulares, figuras y Excel
+generados están excluidos de Git; los scripts de análisis se conservan como
+código fuente.
 
 ## Criterios de limpieza
 

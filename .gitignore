@@ -31,6 +31,16 @@ src/models/
 reports/
 src/reports/
 
+# Resultados experimentales locales (conservar los scripts .py)
+/src/results/pendientes/**/*.csv
+/src/results/pendientes/**/*.json
+/src/results/pendientes/**/*.png
+/src/results/pendientes/**/*.xlsx
+/src/results/pendientes_resenas/**/*.csv
+/src/results/pendientes_resenas/**/*.json
+/src/results/pendientes_resenas/**/*.png
+/src/results/pendientes_resenas/**/*.xlsx
+
 # Variables de entorno
 .env
 .env.*

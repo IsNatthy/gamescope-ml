@@ -6,3 +6,4 @@ bertopic
 sentence-transformers
 umap-learn
 hdbscan
+openpyxl
