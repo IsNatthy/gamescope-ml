@@ -23,6 +23,10 @@ data/processed/
 src/data/raw/*.csv
 src/data/processed/
 
+# Modelos entrenados y artefactos binarios locales
+models/
+src/models/
+
 # Reportes generados
 reports/
 src/reports/
