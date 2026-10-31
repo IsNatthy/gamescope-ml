@@ -15,7 +15,7 @@ def main():
     parser.add_argument("--reviews-file", type=Path,
                         default=PROCESSED / "steam_game_reviews_clean.csv")
     parser.add_argument("--output-dir", type=Path,
-                        default=PROJECT_ROOT / "reports" / "eda")
+                        default=PROJECT_ROOT / "reports" / "eda" / "games")
     args = parser.parse_args()
 
     EDAReport().generate(
