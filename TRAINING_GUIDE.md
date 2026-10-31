@@ -152,8 +152,16 @@ escoger solamente por una métrica sin revisar las demás.
 
 ## 7. Preparar las reseñas
 
-El nuevo flujo de reseñas depura el texto, balancea `voted_up` y separa por
-`appid`, para evitar que reseñas del mismo juego aparezcan en train y test.
+El flujo de reseñas depura el texto, balancea `voted_up` y separa por `appid`,
+para evitar que reseñas del mismo juego aparezcan en train, validación y test.
+En la captura actual, la limpieza deja 715.122 reseñas sin balancear: 130.859
+negativas (18,30 %) y 584.263 positivas (81,70 %). El constructor equilibra
+mediante submuestreo global aleatorio de la clase positiva hasta 130.859 por
+clase, con semilla 42. No aplica un máximo por juego; en el dataset balanceado
+un juego de los 743 originales queda sin reseñas.
+Las proporciones por género principal, calculadas sobre el corpus sin
+balancear, están en
+`src/results/pendientes_resenas/descriptive_cap_50/real_class_by_primary_genre.csv`.
 
 ```powershell
 python -m src.scripts.run_cleaning --dataset reviews
@@ -163,8 +171,11 @@ python -m src.scripts.run_reviews_eda
 ```
 
 Esto genera `reviews_train.csv`, `reviews_validation.csv`, `reviews_test.csv` y
-los reportes de reseñas. La división es aproximadamente 80/10/10, estratifica
-`voted_up` y mantiene cada `appid` en una sola partición.
+los reportes de reseñas. El código construye una partición agrupada y
+aproximadamente 80/10/10 por `appid`; la implementación actual usa
+`StratifiedGroupKFold` para mantener los juegos separados y aproximar la
+distribución de `voted_up`. Los archivos y reportes existentes deben
+comprobarse antes de asumir que corresponden a esta versión del split.
 
 ## Mejoras del entrenamiento de regresión
 
@@ -323,6 +334,59 @@ src/reports/models/bertopic_evaluation.json
 Los tres archivos `bertopic_*_topics.csv` permiten saber qué tema recibió cada
 reseña en cada partición. `bertopic_evaluation.json` contiene NPMI, diversidad,
 outliers, estabilidad y las referencias LDA/NMF.
+
+### Modelo descriptivo sobre reseñas históricas sin balancear
+
+Para analizar temas junto con las recomendaciones observadas, no uses el
+dataset balanceado: su proporción 50/50 no representa la distribución histórica.
+El análisis reproducible actual toma hasta 50 reseñas por juego, con selección
+aleatoria dentro de cada clase y cuotas proporcionales a las clases observadas
+en ese juego. La muestra contiene 36.848 reseñas de 743 juegos (18,35 %
+negativas y 81,65 % positivas). Es una submuestra limitada por hardware, no el
+corpus completo de 715.122 reseñas.
+
+Desde la raíz del proyecto:
+
+```powershell
+python src\results\pendientes_resenas\descriptive_corpus_prep.py --max-per-game 50
+python src\results\pendientes_resenas\bertopic_descriptive_integration.py
+```
+
+En este repositorio los scripts y resultados generados se encuentran bajo
+`src/results/pendientes_resenas/`; los resultados están en
+`descriptive_cap_50/`. La búsqueda probó
+`min_cluster_size` 50, 100 y 200; seleccionó 50 por NPMI más alto (0,3139)
+entre configuraciones con al menos cinco temas y ningún tema mayor al 50 % de
+los no-outliers. Resultado: 145 temas, diversidad 0,7745 y 43,58 % outliers.
+La reducción de outliers por embeddings reasignó 16.059 reseñas y dejó 0 %
+outliers. Las integraciones con y sin reducción, métricas y palabras por tema
+están en los CSV y JSON de esa carpeta.
+
+El cruce con `voted_up` observado y género principal encuentra señales
+descriptivas, no causales. Por ejemplo, sin reducción, el tema de DLC/compra
+en Simulation tiene 40,00 % negativas frente a 22,41 % del segmento
+(Wilson 95 %: 28,57–52,63 %). No interpretes automáticamente la polaridad
+como una oportunidad comercial: revisa las reseñas y la composición de los
+juegos del tema.
+
+La plantilla `revision_temas.xlsx` tiene una fila por tema y columnas
+independientes para tres revisores. Cada revisor mira palabras y ejemplos y
+elige:
+
+- **Interpretable:** idea temática clara respaldada por los ejemplos.
+- **Parcialmente:** hay una idea general, pero se mezclan subtemas o varios
+  ejemplos/palabras no encajan.
+- **No interpretable:** no se identifica una idea común o predominan ruido y
+  artefactos.
+
+Cada revisor completa solo su propia columna; no es necesario que una persona
+llene las tres. La hoja `Acuerdo` calcula porcentajes por etiqueta y acuerdo
+entre revisores (acuerdo total y kappa de Fleiss) cuando los tres han
+completado el mismo tema. El nombre propuesto se acuerda después de la
+etiquetación independiente.
+
+Para reproducir el archivo Excel se necesita `openpyxl`, incluido en
+`requirements-modeling.txt`.
 
 ## 10. Cómo interpretar el resultado de reseñas
 
