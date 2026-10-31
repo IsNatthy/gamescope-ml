@@ -1,8 +1,8 @@
 # Gamescope ML
 
-Proyecto de preparación, limpieza, validación y análisis exploratorio de datasets de Steam, orientado al desarrollo de un flujo de Machine Learning para identificar oportunidades de nicho en el mercado de videojuegos.
+Gamescope ML es un proyecto de análisis predictivo del mercado de videojuegos que utiliza datasets públicos de Steam para identificar oportunidades de nicho y apoyar decisiones durante la preproducción de nuevos títulos. Integra variables estructuradas de los juegos, como precio, géneros, etiquetas y plataformas, con el análisis de las reseñas de los jugadores mediante técnicas de Machine Learning y procesamiento de lenguaje natural.
 
-Actualmente, el proyecto incluye la preparación, validación y entrenamiento reproducible de modelos para los dos objetivos: regresión del número estimado de jugadores y análisis de reseñas.
+El flujo contempla la limpieza, validación y transformación reproducible de los datos, la estimación del número de propietarios de un juego como indicador de desempeño comercial y el análisis del sentimiento y los temas presentes en las reseñas. Los resultados buscan aportar evidencia histórica para evaluar la demanda, la competencia y las características valoradas por los jugadores, sin garantizar el éxito de un videojuego.
 
 Las instrucciones detalladas para preparar los datos y entrenar los modelos se encuentran en [TRAINING_GUIDE.md](TRAINING_GUIDE.md). La formulación y los resultados de regresión están en [MODELO_MATEMATICO.md](MODELO_MATEMATICO.md).
 
@@ -31,11 +31,15 @@ gamescope-ml/
     │   ├── __init__.py
     │   ├── cleaning_report.py
     │   ├── eda_report.py
-    │   └── report_generator.py
+    │   ├── report_generator.py
+    │   └── reviews_eda_report.py
     ├── features/
     │   ├── __init__.py
     │   ├── build_dataset.py
-    │   └── split_dataset.py
+    │   ├── build_reviews_dataset.py
+    │   ├── split_config.py
+    │   ├── split_dataset.py
+    │   └── split_reviews_dataset.py
     ├── reports/
     │   ├── cleaning/
     │   ├── eda/
@@ -45,13 +49,19 @@ gamescope-ml/
     │   ├── pendientes/
     │   └── pendientes_resenas/
     ├── scripts/
-    │   ├── __init__.py
+    │   ├── run_build_dataset.py
+    │   ├── run_build_reviews_dataset.py
     │   ├── run_cleaning.py
     │   ├── run_eda.py
     │   ├── run_header_fix.py
     │   ├── run_profiling.py
-    │   ├── run_build_dataset.py
-    │   └── run_split.py
+    │   ├── run_reviews_eda.py
+    │   ├── run_split.py
+    │   ├── run_split_reviews.py
+    │   ├── run_temporal_success.py
+    │   ├── run_train_bert.py
+    │   ├── run_train_bertopic.py
+    │   └── run_train_success.py
     └── steam_analyzer/
         ├── __init__.py
         ├── config.py
@@ -173,7 +183,7 @@ La existencia de estos componentes no implica que todas las etapas del pipeline 
 
 Almacena los archivos utilizados y generados durante el procesamiento.
 
-- **`raw/`**: contiene los datasets originales y los archivos de entrada, como `games.csv`, `games_fixed.csv` y `steam_game_reviews.csv`.
+- **`raw/`**: contiene los datasets originales y los archivos de entrada, como `games_fixed.csv` y `steam_game_reviews.csv`.
 - **`processed/`**: almacena los datasets resultantes de la limpieza.
 
 ### `src/reports/`
@@ -197,7 +207,7 @@ Si el encabezado del archivo original presenta el problema configurado, ejecuta:
 py -m src.scripts.run_header_fix
 ```
 
-El proceso utiliza `src/data/raw/games.csv` como entrada y genera `src/data/raw/games_fixed.csv`.
+El proceso utiliza `src/data/raw/games.csv` como entrada cuando el archivo original requiere corrección y genera `src/data/raw/games_fixed.csv`.
 
 Este paso debe realizarse antes de limpiar los juegos cuando el archivo original requiere esa corrección.
 
